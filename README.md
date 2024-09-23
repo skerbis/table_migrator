@@ -1,7 +1,5 @@
 # Table_Migrator for REDAXO
 
-Hier ist eine vollständige README für die `TableMigrator` Klasse mit Erklärungen zu den Methoden und Kurzbeispielen:
-
 # TableMigrator
 
 `TableMigrator` ist eine flexible PHP-Klasse für die Migration von Daten zwischen Datenbanktabellen. Sie bietet verschiedene Mapping-Optionen zur Transformation und Kombination von Feldern.
