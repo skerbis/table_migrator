@@ -1,4 +1,4 @@
-# rex_repo_template
+# Table_Migrator for REDAXO
 
 
 ```php
