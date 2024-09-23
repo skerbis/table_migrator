@@ -1,0 +1,130 @@
+<?php
+namespace klxm\migrator;
+
+class FlexibleMigration
+{
+    private $oldTable;
+    private $newTable;
+    private $mappings;
+    private $sql;
+
+    public function __construct($oldTable, $newTable)
+    {
+        $this->oldTable = $oldTable;
+        $this->newTable = $newTable;
+        $this->mappings = [];
+        $this->sql = \rex_sql::factory();
+    }
+
+    public function addMapping($newField, $oldField)
+    {
+        $this->mappings[$newField] = $oldField;
+        return $this;
+    }
+
+    public function addCombinedMapping($newField, $oldFields, $combineFunction)
+    {
+        $this->mappings[$newField] = ['fields' => $oldFields, 'function' => $combineFunction];
+        return $this;
+    }
+
+    public function addProcessedMapping($newField, $oldField, $processFunction)
+    {
+        $this->mappings[$newField] = ['field' => $oldField, 'process' => $processFunction];
+        return $this;
+    }
+
+    public function addForcalRRuleMapping($newField, $oldFields)
+    {
+        $this->mappings[$newField] = [
+            'fields' => $oldFields,
+            'function' => function($repeat, $repeat_year, $repeat_week, $repeat_month, $repeat_month_week, $repeat_day, $end_repeat_date) {
+                if ($repeat === '') {
+                    return '';  // Kein wiederkehrendes Ereignis
+                }
+
+                $rrule = "FREQ=";
+
+                switch ($repeat) {
+                    case 'daily':
+                        $rrule .= "DAILY";
+                        break;
+                    case 'weekly':
+                        $rrule .= "WEEKLY";
+                        if ($repeat_day) {
+                            $rrule .= ";BYDAY=" . strtoupper(substr($repeat_day, 0, 2));
+                        }
+                        break;
+                    case 'monthly':
+                        $rrule .= "MONTHLY";
+                        if ($repeat_month_week && $repeat_day) {
+                            $weekNumber = $repeat_month_week === 'last' ? -1 : $repeat_month_week;
+                            $rrule .= ";BYDAY=" . $weekNumber . strtoupper(substr($repeat_day, 0, 2));
+                        } elseif ($repeat_month) {
+                            $rrule .= ";BYMONTHDAY=" . $repeat_month;
+                        }
+                        break;
+                    case 'yearly':
+                        $rrule .= "YEARLY";
+                        if ($repeat_year) {
+                            $rrule .= ";BYMONTH=" . $repeat_year;
+                        }
+                        break;
+                    default:
+                        return '';  // Ungültiger Wiederholungstyp
+                }
+
+                if ($repeat_week && $repeat === 'weekly') {
+                    $rrule .= ";INTERVAL=" . $repeat_week;
+                }
+
+                if ($end_repeat_date) {
+                    $untilDate = new \DateTime($end_repeat_date);
+                    $rrule .= ";UNTIL=" . $untilDate->format('Ymd\THis\Z');
+                }
+
+                return $rrule;
+            }
+        ];
+
+        return $this;
+    }
+
+    public function migrate()
+    {
+        $data = $this->sql->getArray("SELECT * FROM {$this->oldTable}");
+
+        foreach ($data as $row) {
+            $newData = [];
+            foreach ($this->mappings as $newField => $oldField) {
+                if (is_array($oldField)) {
+                    if (isset($oldField['fields'])) {
+                        // Combined or Forcal RRule mapping
+                        $values = array_map(function($field) use ($row) {
+                            return $row[$field];
+                        }, $oldField['fields']);
+                        $newData[$newField] = $oldField['function'](...$values);
+                    } elseif (isset($oldField['field'])) {
+                        // Processed mapping
+                        $newData[$newField] = $oldField['process']($row[$oldField['field']]);
+                    }
+                } else {
+                    $newData[$newField] = $row[$oldField];
+                }
+            }
+
+            $this->insertIntoNewTable($newData);
+        }
+
+        echo "Migration abgeschlossen!";
+    }
+
+    private function insertIntoNewTable($data)
+    {
+        $fields = implode(', ', array_keys($data));
+        $placeholders = ':' . implode(', :', array_keys($data));
+
+        $query = "INSERT INTO {$this->newTable} ($fields) VALUES ($placeholders)";
+        $this->sql->setQuery($query, $data);
+    }
+}
