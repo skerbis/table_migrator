@@ -66,21 +66,6 @@ $migrator->migrate();
 - `migrate()`: Führt die Migration durch
 - `truncateAndStripHTML($text, $maxLength)`: Hilfsmethode zum Kürzen und Bereinigen von HTML
 
-## Hinweise
-
-- Diese Klasse wurde für die Verwendung mit REDAXO und YForm entwickelt.
-- Stellen Sie sicher, dass Sie Backups Ihrer Daten haben, bevor Sie eine Migration durchführen.
-- Testen Sie die Migration gründlich in einer Entwicklungsumgebung, bevor Sie sie in der Produktion einsetzen.
-
-## Lizenz
-
-[Ihre Lizenzinformationen hier einfügen]
-
-## Beitragen
-
-Wenn Sie zu diesem Projekt beitragen möchten, erstellen Sie bitte einen Pull Request oder öffnen Sie ein Issue für Diskussionen und Vorschläge.$migrator->migrate();
-```
-
 ## Beispiele
 
 ### Benutzertabelle Migration
