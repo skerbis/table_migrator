@@ -216,6 +216,47 @@ Dieses Beispiel zeigt, wie flexibel der `TableMigrator` sein kann, um selbst kom
 
 Beachten Sie, dass Sie möglicherweise die Zielfelder in Ihrer neuen Kalendertabelle entsprechend anpassen müssen, um alle diese Informationen aufnehmen zu können. Außerdem könnten je nach Ihrer spezifischen Implementierung weitere Anpassungen erforderlich sein.
 
+## Praxis-Beispiel: 
+
+```php
+// Usage
+$migrator = new TableMigratorx('rex_forcal_entries', 'rex_yformcalendar');
+$migrator->addMapping('name', 'name_1')
+    ->addProcessedMapping('description', 'text_1', function($text) use ($migrator) {
+        return $migrator->truncateAndStripHTML($text);
+    })
+    ->addRelatedMapping('location', 'awoloc', 'rex_orte', 'name')
+
+    ->addCombinedMapping('dtstart', ['start_date', 'start_time'], function($date, $time) {
+        return $date . ' ' . $time;
+    })
+    ->addCombinedMapping('dtend', ['end_date', 'end_time'], function($date, $time) {
+        return $date . ' ' . $time;
+    })
+    ->addProcessedMapping('all_day', 'full_time', function($value) {
+        return $value === null ? 0 : ($value ? 1 : 0);
+    })
+    ->addMapping('categories', 'category');
+        // Fields that couldn't be directly mapped:
+        // ->addMapping('createdate', 'createdate')
+        // ->addMapping('updatedate', 'updatedate')
+        // ->addMapping('created_by', 'createuser')
+        // ->addMapping('updated_by', 'updateuser')
+        // ->addMapping('status', 'status')
+        // ->addMapping('teaser', 'teaser_1')
+        // ->addMapping('image', 'image')
+        // ->addMapping('file', 'file')
+        // ->addMapping('lang', 'lang_1')
+        // ->addMapping('category_id', 'category')
+        // ->addMapping('location_id', 'venue')
+$migrator->migrate();
+?>
+
+```
+
+
+
+
 ## Hinweise
 
 - Stellen Sie sicher, dass die Zieltabelle bereits existiert und die korrekten Felder enthält.
