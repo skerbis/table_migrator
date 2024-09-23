@@ -1,7 +1,7 @@
 <?php
 namespace klxm\migrator;
 
-class FlexibleMigration
+class TableMigrator
 {
     private $oldTable;
     private $newTable;
