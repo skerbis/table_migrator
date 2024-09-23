@@ -34,59 +34,15 @@ class TableMigrator
         return $this;
     }
 
-    public function addForcalRRuleMapping($newField, $oldFields)
+    public function addRelatedMapping($newField, $oldField, $relatedTable, $relatedField, $defaultValue = '')
     {
         $this->mappings[$newField] = [
-            'fields' => $oldFields,
-            'function' => function($repeat, $repeat_year, $repeat_week, $repeat_month, $repeat_month_week, $repeat_day, $end_repeat_date) {
-                if ($repeat === '') {
-                    return '';  // Kein wiederkehrendes Ereignis
-                }
-
-                $rrule = "FREQ=";
-
-                switch ($repeat) {
-                    case 'daily':
-                        $rrule .= "DAILY";
-                        break;
-                    case 'weekly':
-                        $rrule .= "WEEKLY";
-                        if ($repeat_day) {
-                            $rrule .= ";BYDAY=" . strtoupper(substr($repeat_day, 0, 2));
-                        }
-                        break;
-                    case 'monthly':
-                        $rrule .= "MONTHLY";
-                        if ($repeat_month_week && $repeat_day) {
-                            $weekNumber = $repeat_month_week === 'last' ? -1 : $repeat_month_week;
-                            $rrule .= ";BYDAY=" . $weekNumber . strtoupper(substr($repeat_day, 0, 2));
-                        } elseif ($repeat_month) {
-                            $rrule .= ";BYMONTHDAY=" . $repeat_month;
-                        }
-                        break;
-                    case 'yearly':
-                        $rrule .= "YEARLY";
-                        if ($repeat_year) {
-                            $rrule .= ";BYMONTH=" . $repeat_year;
-                        }
-                        break;
-                    default:
-                        return '';  // Ungültiger Wiederholungstyp
-                }
-
-                if ($repeat_week && $repeat === 'weekly') {
-                    $rrule .= ";INTERVAL=" . $repeat_week;
-                }
-
-                if ($end_repeat_date) {
-                    $untilDate = new \DateTime($end_repeat_date);
-                    $rrule .= ";UNTIL=" . $untilDate->format('Ymd\THis\Z');
-                }
-
-                return $rrule;
-            }
+            'type' => 'related',
+            'field' => $oldField,
+            'relatedTable' => $relatedTable,
+            'relatedField' => $relatedField,
+            'defaultValue' => $defaultValue
         ];
-
         return $this;
     }
 
@@ -96,20 +52,29 @@ class TableMigrator
 
         foreach ($data as $row) {
             $newData = [];
-            foreach ($this->mappings as $newField => $oldField) {
-                if (is_array($oldField)) {
-                    if (isset($oldField['fields'])) {
-                        // Combined or Forcal RRule mapping
+            foreach ($this->mappings as $newField => $mapping) {
+                if (is_array($mapping)) {
+                    if (isset($mapping['fields'])) {
+                        // Combined mapping
                         $values = array_map(function($field) use ($row) {
                             return $row[$field];
-                        }, $oldField['fields']);
-                        $newData[$newField] = $oldField['function'](...$values);
-                    } elseif (isset($oldField['field'])) {
+                        }, $mapping['fields']);
+                        $newData[$newField] = $mapping['function'](...$values);
+                    } elseif (isset($mapping['field']) && isset($mapping['process'])) {
                         // Processed mapping
-                        $newData[$newField] = $oldField['process']($row[$oldField['field']]);
+                        $newData[$newField] = $mapping['process']($row[$mapping['field']]);
+                    } elseif (isset($mapping['type']) && $mapping['type'] === 'related') {
+                        // Related mapping
+                        $relatedValue = $this->getRelatedValue(
+                            $row[$mapping['field']],
+                            $mapping['relatedTable'],
+                            $mapping['relatedField'],
+                            $mapping['defaultValue']
+                        );
+                        $newData[$newField] = $relatedValue;
                     }
                 } else {
-                    $newData[$newField] = $row[$oldField];
+                    $newData[$newField] = $row[$mapping];
                 }
             }
 
@@ -117,6 +82,28 @@ class TableMigrator
         }
 
         echo "Migration abgeschlossen!";
+    }
+
+    private function getRelatedValue($id, $relatedTable, $relatedField, $defaultValue = 'Unbekannt')
+    {
+        if ($id === null || $id === '') {
+            return $defaultValue;
+        }
+        
+        $id = (int)$id; // Ensure the id is an integer
+        
+        try {
+            $relatedObject = \rex_yform_manager_dataset::get($id, $relatedTable);
+            if ($relatedObject) {
+                $value = $relatedObject->getValue($relatedField);
+                return $value !== null && $value !== '' ? $value : $defaultValue;
+            }
+            return $defaultValue;
+        } catch (\Exception $e) {
+            // Log the error or handle it as appropriate for your application
+            error_log("Error retrieving related value: " . $e->getMessage());
+            return $defaultValue;
+        }
     }
 
     private function insertIntoNewTable($data)
@@ -127,4 +114,33 @@ class TableMigrator
         $query = "INSERT INTO {$this->newTable} ($fields) VALUES ($placeholders)";
         $this->sql->setQuery($query, $data);
     }
+
+    public function truncateAndStripHTML($text, $maxLength = 256)
+    {
+        $text = strip_tags($text);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        
+        if (strlen($text) <= $maxLength) {
+            return $text;
+        }
+
+        $truncated = substr($text, 0, $maxLength);
+        
+        // Find the position of the last sentence end within the truncated text
+        $lastSentenceEnd = 0;
+        preg_match_all('/[.!?](?=\s|$)/u', $truncated, $matches, PREG_OFFSET_CAPTURE);
+        
+        if (!empty($matches[0])) {
+            $lastSentenceEnd = $matches[0][count($matches[0]) - 1][1] + 1;
+        }
+
+        // If we found a sentence end, use it; otherwise, find the last complete word
+        if ($lastSentenceEnd > 0) {
+            return trim(substr($text, 0, $lastSentenceEnd));
+        } else {
+            $lastSpace = strrpos($truncated, ' ');
+            return $lastSpace !== false ? trim(substr($text, 0, $lastSpace)) : $truncated;
+        }
+    }
 }
+
