@@ -6,15 +6,6 @@ Hier ist eine vollständige README für die `TableMigrator` Klasse mit Erklärun
 
 `TableMigrator` ist eine flexible PHP-Klasse für die Migration von Daten zwischen Datenbanktabellen. Sie bietet verschiedene Mapping-Optionen zur Transformation und Kombination von Feldern.
 
-## Installation
-
-Fügen Sie die `TableMigrator.php` Datei zu Ihrem Projekt hinzu und importieren Sie sie:
-
-```php
-require_once 'path/to/TableMigrator.php';
-use klxm\migrator\TableMigrator;
-```
-
 ## Grundlegende Verwendung
 
 ```php
