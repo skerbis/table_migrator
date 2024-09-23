@@ -2,92 +2,83 @@
 
 # TableMigrator
 
-`TableMigrator` ist eine flexible PHP-Klasse für die Migration von Daten zwischen Datenbanktabellen. Sie bietet verschiedene Mapping-Optionen zur Transformation und Kombination von Feldern.
+`TableMigrator` ist eine PHP-Klasse, die entwickelt wurde, um die Migration von Daten zwischen Datenbanktabellen zu erleichtern. Sie bietet eine flexible und erweiterbare Lösung für die Übertragung von Daten aus einer alten Tabellenstruktur in eine neue, mit Unterstützung für verschiedene Arten von Feldmappings und Datenverarbeitung.
 
-## Grundlegende Verwendung
+## Funktionen
+
+- Einfaches Mapping von Feldern zwischen alter und neuer Tabelle
+- Kombinieren mehrerer Felder in ein neues Feld
+- Verarbeiten von Feldinhalten während der Migration
+- Herstellen von Beziehungen zu verwandten Tabellen
+- Automatisches Einfügen von migrierten Daten in die neue Tabelle
+
+## Installation
+
+Fügen Sie die `TableMigrator`-Klasse zu Ihrem REDAXO-Projekt hinzu. Stellen Sie sicher, dass sie im Namespace `klxm\migrator` liegt.
+
+## Verwendung
+
+### Grundlegende Verwendung
 
 ```php
+use klxm\migrator\TableMigrator;
+
 $migrator = new TableMigrator('old_table', 'new_table');
-$migrator->addMapping('new_field', 'old_field');
+$migrator->addMapping('new_field', 'old_field')
+         ->migrate();
+```
+
+### Erweiterte Mappings
+
+```php
+// Kombiniertes Mapping
+$migrator->addCombinedMapping('full_name', ['first_name', 'last_name'], 
+    function($firstName, $lastName) {
+        return $firstName . ' ' . $lastName;
+    }
+);
+
+// Verarbeitetes Mapping
+$migrator->addProcessedMapping('description', 'old_description', 
+    function($text) {
+        return $migrator->truncateAndStripHTML($text, 200);
+    }
+);
+
+// Verwandtes Mapping
+$migrator->addRelatedMapping('category_name', 'category_id', 'rex_categories', 'name', 'Uncategorized');
+```
+
+### Durchführen der Migration
+
+Nach dem Einrichten aller Mappings, führen Sie die Migration durch:
+
+```php
 $migrator->migrate();
 ```
 
 ## Methoden
 
-### Constructor
+- `addMapping($newField, $oldField)`: Einfaches Feldmapping
+- `addCombinedMapping($newField, $oldFields, $combineFunction)`: Kombiniert mehrere Felder
+- `addProcessedMapping($newField, $oldField, $processFunction)`: Verarbeitet Feldinhalte
+- `addRelatedMapping($newField, $oldField, $relatedTable, $relatedField, $defaultValue)`: Stellt Beziehungen her
+- `migrate()`: Führt die Migration durch
+- `truncateAndStripHTML($text, $maxLength)`: Hilfsmethode zum Kürzen und Bereinigen von HTML
 
-```php
-public function __construct($oldTable, $newTable)
-```
+## Hinweise
 
-Initialisiert einen neuen TableMigrator.
+- Diese Klasse wurde für die Verwendung mit REDAXO und YForm entwickelt.
+- Stellen Sie sicher, dass Sie Backups Ihrer Daten haben, bevor Sie eine Migration durchführen.
+- Testen Sie die Migration gründlich in einer Entwicklungsumgebung, bevor Sie sie in der Produktion einsetzen.
 
-```php
-$migrator = new TableMigrator('old_users', 'new_users');
-```
+## Lizenz
 
-### addMapping
+[Ihre Lizenzinformationen hier einfügen]
 
-```php
-public function addMapping($newField, $oldField)
-```
+## Beitragen
 
-Fügt ein einfaches 1:1 Mapping zwischen Feldern hinzu.
-
-```php
-$migrator->addMapping('username', 'user_login');
-```
-
-### addCombinedMapping
-
-```php
-public function addCombinedMapping($newField, $oldFields, $combineFunction)
-```
-
-Kombiniert mehrere Felder zu einem neuen Feld.
-
-```php
-$migrator->addCombinedMapping('full_name', ['first_name', 'last_name'], function($first, $last) {
-    return $first . ' ' . $last;
-});
-```
-
-### addProcessedMapping
-
-```php
-public function addProcessedMapping($newField, $oldField, $processFunction)
-```
-
-Wendet eine Funktion auf ein Feld an.
-
-```php
-$migrator->addProcessedMapping('hashed_password', 'password', function($value) {
-    return password_hash($value, PASSWORD_DEFAULT);
-});
-```
-
-### addForcalRRuleMapping
-
-```php
-public function addForcalRRuleMapping($newField, $oldFields)
-```
-
-Spezielle Methode zur Konvertierung von Forcal-Wiederholungsregeln in iCal RRULE Format.
-
-```php
-$migrator->addForcalRRuleMapping('rrule', ['repeat', 'repeat_year', 'repeat_week', 'repeat_month', 'repeat_month_week', 'repeat_day', 'end_repeat_date']);
-```
-
-### migrate
-
-```php
-public function migrate()
-```
-
-Führt die Migration basierend auf den definierten Mappings durch.
-
-```php
-$migrator->migrate();
+Wenn Sie zu diesem Projekt beitragen möchten, erstellen Sie bitte einen Pull Request oder öffnen Sie ein Issue für Diskussionen und Vorschläge.$migrator->migrate();
 ```
 
 ## Beispiele
